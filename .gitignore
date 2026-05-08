@@ -1,0 +1,39 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Données utilisateur
+data/sessions/*/
+data/calibration/*.png
+data/calibration/*.jpg
+data/calibration/*.jpeg
+data/models/*.bin
+data/models/*.pt
+
+# Mais on garde les .gitkeep et l'index corrections.jsonl
+!data/sessions/.gitkeep
+!data/calibration/.gitkeep
+!data/models/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editeurs
+.vscode/
+.idea/
+*.swp

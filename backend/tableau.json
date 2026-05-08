@@ -1,0 +1,55 @@
+{
+  "_comment": "Définition du tableau phonétique. Modifiable selon les besoins de Yoni. Les cellules sont parcourues ligne par ligne, gauche-droite, haut-bas. Chaque cellule a un id (utilisé par le pipeline), un label (affiché à l'écran/lu à voix haute), et un type (phoneme | mot | pronom).",
+  "rows": 6,
+  "cols": 6,
+  "cells": [
+    [
+      {"id": "a",  "label": "A",  "type": "phoneme"},
+      {"id": "e",  "label": "E",  "type": "phoneme"},
+      {"id": "i",  "label": "I",  "type": "phoneme"},
+      {"id": "o",  "label": "O",  "type": "phoneme"},
+      {"id": "u",  "label": "U",  "type": "phoneme"},
+      {"id": "ou", "label": "OU", "type": "phoneme"}
+    ],
+    [
+      {"id": "e_acute", "label": "É",  "type": "phoneme"},
+      {"id": "e_grave", "label": "È",  "type": "phoneme"},
+      {"id": "an",      "label": "AN", "type": "phoneme"},
+      {"id": "on",      "label": "ON", "type": "phoneme"},
+      {"id": "in",      "label": "IN", "type": "phoneme"},
+      {"id": "eu",      "label": "EU", "type": "phoneme"}
+    ],
+    [
+      {"id": "b", "label": "B", "type": "phoneme"},
+      {"id": "c", "label": "C", "type": "phoneme"},
+      {"id": "d", "label": "D", "type": "phoneme"},
+      {"id": "f", "label": "F", "type": "phoneme"},
+      {"id": "g", "label": "G", "type": "phoneme"},
+      {"id": "h", "label": "H", "type": "phoneme"}
+    ],
+    [
+      {"id": "j", "label": "J", "type": "phoneme"},
+      {"id": "l", "label": "L", "type": "phoneme"},
+      {"id": "m", "label": "M", "type": "phoneme"},
+      {"id": "n", "label": "N", "type": "phoneme"},
+      {"id": "p", "label": "P", "type": "phoneme"},
+      {"id": "r", "label": "R", "type": "phoneme"}
+    ],
+    [
+      {"id": "s",  "label": "S",  "type": "phoneme"},
+      {"id": "t",  "label": "T",  "type": "phoneme"},
+      {"id": "v",  "label": "V",  "type": "phoneme"},
+      {"id": "z",  "label": "Z",  "type": "phoneme"},
+      {"id": "ch", "label": "CH", "type": "phoneme"},
+      {"id": "gn", "label": "GN", "type": "phoneme"}
+    ],
+    [
+      {"id": "je",   "label": "je",   "type": "pronom"},
+      {"id": "tu",   "label": "tu",   "type": "pronom"},
+      {"id": "il",   "label": "il",   "type": "pronom"},
+      {"id": "elle", "label": "elle", "type": "pronom"},
+      {"id": "oui",  "label": "oui",  "type": "mot"},
+      {"id": "non",  "label": "non",  "type": "mot"}
+    ]
+  ]
+}
