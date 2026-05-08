@@ -285,11 +285,49 @@ def run_pipeline(
 
         pointings = project_pointings_to_cells(pointings, calibration, tableau, dbg)
 
+        # Correcteur k-NN géométrique sur l'historique des corrections.
+        from learn import apply_knn_to_pointings
+        corrections_path = session_dir.parent.parent / "corrections.jsonl"
+        with dbg.step("correcteur k-NN"):
+            pointings, knn_stats = apply_knn_to_pointings(pointings, corrections_path)
+        dbg.log("k-NN appliqué", **knn_stats)
+
+        # Mise à jour des labels en utilisant la case corrigée si différente.
+        for p in pointings:
+            cid = p.get("case_id_corrigee")
+            if cid:
+                # Retrouve le label correspondant.
+                for r in tableau["cells"]:
+                    for c in r:
+                        if c["id"] == cid:
+                            p["label_corrige"] = c["label"]
+                            break
+
         with dbg.step(f"transcription Whisper ({os.getenv('WHISPER_MODEL', 'medium')})"):
             transcript = transcribe(audio_path)
         dbg.log("transcription", chars=len(transcript["text"]), nb_segments=len(transcript["segments"]))
 
         pointings = align_pointings_with_audio(pointings, transcript["segments"])
+
+        # Séquence finale = case corrigée par k-NN (si dispo) sinon géométrique.
+        case_seq = [p.get("case_id_corrigee") or p.get("case_id_geometrique") for p in pointings]
+        label_seq = [p.get("label_corrige") or p.get("label") for p in pointings]
+
+        # Reconstruction Claude (itération 4). Si la clé manque ou si l'appel échoue,
+        # on remonte une liste vide + claude_error pour que le front l'affiche en clair.
+        propositions: list[str] = []
+        claude_error: str | None = None
+        try:
+            from claude_reconstruct import reconstruct
+            corrections_path = session_dir.parent.parent / "corrections.jsonl"
+            with dbg.step("appel Claude (reconstruction)"):
+                propositions = reconstruct(
+                    case_seq, label_seq, transcript["text"], corrections_path
+                )
+            dbg.log("propositions Claude", nb=len(propositions), first=propositions[0] if propositions else None)
+        except Exception as e:
+            claude_error = str(e)
+            dbg.log("Claude indisponible", error=claude_error)
 
         result = {
             "session_id": session_dir.name,
@@ -298,9 +336,10 @@ def run_pipeline(
             "color_stats": color_stats,
             "pointages": pointings,
             "audio_transcript": transcript,
-            "case_sequence": [p["case_id_geometrique"] for p in pointings],
-            "label_sequence": [p["label"] for p in pointings],
-            "propositions": [],  # rempli à l'itération 4 (Claude)
+            "case_sequence": case_seq,
+            "label_sequence": label_seq,
+            "propositions": propositions,
+            "claude_error": claude_error,
         }
         (session_dir / "result.json").write_text(
             json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"

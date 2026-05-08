@@ -223,8 +223,36 @@ async def post_process(video: UploadFile = File(..., description="vidéo .mov ou
 
 
 @app.post("/api/learn")
-def post_learn():
-    raise HTTPException(501, "Itération 5 — pas encore implémenté")
+async def post_learn(payload: dict):
+    """
+    Enregistre une correction humaine dans corrections.jsonl.
+    Body : { session_id, phrase_finale, phrase_proposee_n1, phrase_humaine_corrigee }
+    """
+    from learn import append_correction
+
+    session_id = payload.get("session_id")
+    phrase_finale = (payload.get("phrase_finale") or "").strip()
+    if not session_id or not phrase_finale:
+        raise HTTPException(400, "session_id et phrase_finale obligatoires")
+
+    session_dir = SESSIONS_DIR / session_id
+    result_file = session_dir / "result.json"
+    if not result_file.exists():
+        raise HTTPException(404, "session inconnue")
+    result = json.loads(result_file.read_text(encoding="utf-8"))
+
+    record = append_correction(
+        CORRECTIONS_PATH,
+        session_id=session_id,
+        phrase_finale=phrase_finale,
+        phrase_proposee_n1=payload.get("phrase_proposee_n1"),
+        phrase_humaine_corrigee=payload.get("phrase_humaine_corrigee"),
+        pointages=result.get("pointages", []),
+        audio_transcript=result.get("audio_transcript", {}).get("text", ""),
+        label_sequence=result.get("label_sequence", []),
+    )
+    log.info("correction enregistrée — session=%s phrase=%r", session_id, phrase_finale)
+    return {"ok": True, "record": record}
 
 
 @app.get("/api/history")

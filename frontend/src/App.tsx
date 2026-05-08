@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Calibration } from "./components/Calibration";
+import { Session } from "./components/Session";
+import { Result } from "./components/Result";
+import type { ProcessResult } from "./types";
 
 type CalibrationState = {
   calibrated: boolean;
@@ -18,19 +21,29 @@ type CalibrationState = {
   }[];
 };
 
+type HistoryEntry = {
+  timestamp: string;
+  session_id: string;
+  phrase_finale: string;
+};
+
 export default function App() {
   const [health, setHealth] = useState<{ status: string; anthropic_key_present: boolean } | null>(null);
   const [calib, setCalib] = useState<CalibrationState | null>(null);
+  const [result, setResult] = useState<ProcessResult | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     Promise.all([
       fetch("/api/health").then((r) => r.json()),
       fetch("/api/calibration").then((r) => r.json()),
+      fetch("/api/history").then((r) => r.json()),
     ])
-      .then(([h, c]) => {
+      .then(([h, c, hist]) => {
         setHealth(h);
         setCalib(c);
+        setHistory(hist.sessions || []);
       })
       .catch((e) => setError(String(e)));
   }, []);
@@ -73,36 +86,64 @@ export default function App() {
         </Section>
 
         <Section title="2. Session" defaultOpen={isCalibrated}>
-          <p className="text-sm text-slate-600">
-            Itération 3 — démarrage de la session, upload vidéo, lancement du pipeline.
-          </p>
-          <button
-            disabled
-            title={isCalibrated ? "À implémenter en itération 3" : "Calibrer d'abord"}
-            className="mt-3 px-4 py-2 rounded bg-slate-300 text-slate-600 text-sm cursor-not-allowed"
-          >
-            ▶ Démarrer la session
-          </button>
+          <Session calibrated={isCalibrated} onResult={setResult} />
         </Section>
 
-        <Section title="3. Résultat" defaultOpen={false}>
-          <p className="text-sm text-slate-600">
-            Itération 4 — 5 propositions cliquables, champ correction, validation.
-          </p>
+        <Section title="3. Résultat" defaultOpen={!!result}>
+          {result ? (
+            <Result result={result} onValidated={() => reload()} />
+          ) : (
+            <p className="text-sm text-slate-500">Démarre une session pour voir les propositions ici.</p>
+          )}
         </Section>
 
         <Section title="4. Historique" defaultOpen={false}>
-          <p className="text-sm text-slate-600">
-            Itération 6 — phrases validées avec lecture vocale.
-          </p>
+          {history.length === 0 ? (
+            <p className="text-sm text-slate-500">Aucune phrase validée pour l'instant.</p>
+          ) : (
+            <ul className="text-sm divide-y divide-slate-100">
+              {history
+                .slice()
+                .reverse()
+                .map((h) => (
+                  <li key={h.session_id + h.timestamp} className="py-2 flex items-center gap-2">
+                    <span className="text-slate-400 font-mono text-xs flex-shrink-0">
+                      {h.timestamp.slice(0, 19).replace("T", " ")}
+                    </span>
+                    <span className="flex-1 break-words">{h.phrase_finale}</span>
+                    <button
+                      onClick={() => speakFr(h.phrase_finale)}
+                      className="px-2 py-1 rounded text-xs bg-slate-100 hover:bg-slate-200 flex-shrink-0"
+                      title="Lire à voix haute"
+                    >
+                      🔊 Lire
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
         </Section>
       </main>
 
       <footer className="mx-auto max-w-6xl px-4 py-6 text-xs text-slate-400">
-        v0.2.0 · itération 2 — calibration end-to-end
+        v0.4.0 · itération 4 — reconstruction Claude + UI résultat
       </footer>
     </div>
   );
+}
+
+function speakFr(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    alert("Lecture vocale non supportée par ce navigateur.");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "fr-FR";
+  // Choisit une voix française si disponible.
+  const fr = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith("fr"));
+  if (fr) u.voice = fr;
+  window.speechSynthesis.speak(u);
 }
 
 function Badge({ ok, children }: { ok: boolean; children: React.ReactNode }) {
@@ -129,6 +170,7 @@ function Section({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => setOpen(defaultOpen), [defaultOpen]);
   return (
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
       <button
