@@ -1,13 +1,29 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Calibration } from "./components/Calibration";
 
-type CalibrationState = { calibrated: boolean; [k: string]: unknown };
+type CalibrationState = {
+  calibrated: boolean;
+  image_filename?: string;
+  image_size?: { w: number; h: number };
+  rows?: number;
+  cols?: number;
+  cells?: {
+    id: string;
+    label: string;
+    type: string;
+    row: number;
+    col: number;
+    corners: [number, number][];
+    center: [number, number];
+  }[];
+};
 
 export default function App() {
   const [health, setHealth] = useState<{ status: string; anthropic_key_present: boolean } | null>(null);
   const [calib, setCalib] = useState<CalibrationState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     Promise.all([
       fetch("/api/health").then((r) => r.json()),
       fetch("/api/calibration").then((r) => r.json()),
@@ -19,12 +35,14 @@ export default function App() {
       .catch((e) => setError(String(e)));
   }, []);
 
+  useEffect(() => reload(), [reload]);
+
   const isCalibrated = !!calib?.calibrated;
 
   return (
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-semibold">Yoni — reconstruction de phrases</h1>
             <p className="text-sm text-slate-500">
@@ -51,18 +69,16 @@ export default function App() {
 
       <main className="mx-auto max-w-6xl px-4 py-6 grid gap-6 lg:grid-cols-2">
         <Section title="1. Calibration" defaultOpen={!isCalibrated}>
-          <p className="text-sm text-slate-600">
-            Itération 2 — upload photo zénithale du tableau, click sur 4 coins, calcul de l'homographie.
-          </p>
+          <Calibration data={calib} onChanged={reload} />
         </Section>
 
         <Section title="2. Session" defaultOpen={isCalibrated}>
           <p className="text-sm text-slate-600">
-            Itération 2-3 — démarrage de la session, upload vidéo, lancement du pipeline.
+            Itération 3 — démarrage de la session, upload vidéo, lancement du pipeline.
           </p>
           <button
             disabled
-            title={isCalibrated ? "À implémenter en itération 2" : "Calibrer d'abord"}
+            title={isCalibrated ? "À implémenter en itération 3" : "Calibrer d'abord"}
             className="mt-3 px-4 py-2 rounded bg-slate-300 text-slate-600 text-sm cursor-not-allowed"
           >
             ▶ Démarrer la session
@@ -83,7 +99,7 @@ export default function App() {
       </main>
 
       <footer className="mx-auto max-w-6xl px-4 py-6 text-xs text-slate-400">
-        v0.1.0 · itération 1 — squelette en place
+        v0.2.0 · itération 2 — calibration end-to-end
       </footer>
     </div>
   );

@@ -2,27 +2,33 @@
 Backend FastAPI pour Yoni v2 — reconstruction de phrases à partir de pointages
 sur un tableau phonétique filmé en vidéo.
 
-Endpoints (squelette itération 1, remplis aux itérations 2-5) :
-  GET  /api/calibration      → état actuel de calibration
+Endpoints :
+  GET  /api/health           → ping + état config
+  GET  /api/tableau          → définition du tableau phonétique
+  GET  /api/calibration      → état actuel de calibration (incluant bboxes des cases)
   POST /api/calibration      → upload photo + 4 coins → calcule homographie
-  POST /api/process          → upload vidéo → pipeline complet
-  POST /api/learn            → enregistre la correction humaine
+  GET  /api/calibration/image → renvoie la photo de calibration (PNG/JPG)
+  POST /api/process          → upload vidéo → pipeline complet      [itération 3]
+  POST /api/learn            → enregistre la correction humaine     [itération 5]
   GET  /api/history          → historique des phrases validées
-  GET  /api/tableau          → renvoie tableau.json
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import shutil
 from pathlib import Path
+from typing import List
 
+import numpy as np
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
-# Charge .env.local s'il existe (clé Anthropic, etc.).
+from homography import cells_to_bboxes, compute_homographies
+
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env.local")
 load_dotenv(ROOT / ".env")
@@ -43,9 +49,8 @@ logging.basicConfig(
 )
 log = logging.getLogger("yoni")
 
-app = FastAPI(title="Yoni v2", version="0.1.0")
+app = FastAPI(title="Yoni v2", version="0.2.0")
 
-# CORS large en dev (front Vite sur 5173).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -55,11 +60,16 @@ app.add_middleware(
 )
 
 
+def _load_tableau() -> dict:
+    return json.loads(TABLEAU_PATH.read_text(encoding="utf-8"))
+
+
 @app.get("/api/health")
 def health():
     return {
         "status": "ok",
         "anthropic_key_present": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "version": app.version,
     }
 
 
@@ -67,12 +77,12 @@ def health():
 def get_tableau():
     if not TABLEAU_PATH.exists():
         raise HTTPException(500, "tableau.json introuvable")
-    return JSONResponse(json.loads(TABLEAU_PATH.read_text(encoding="utf-8")))
+    return JSONResponse(_load_tableau())
 
 
 @app.get("/api/calibration")
 def get_calibration():
-    """Retourne l'état actuel de la calibration (None si jamais calibrée)."""
+    """Retourne l'état actuel de la calibration (calibrated=False si jamais calibrée)."""
     calib_file = CALIB_DIR / "calibration.json"
     if not calib_file.exists():
         return {"calibrated": False}
@@ -80,12 +90,101 @@ def get_calibration():
     return {"calibrated": True, **data}
 
 
-# Les endpoints suivants seront implémentés aux itérations 2-5.
+@app.get("/api/calibration/image")
+def get_calibration_image():
+    for ext in ("jpg", "jpeg", "png"):
+        p = CALIB_DIR / f"photo.{ext}"
+        if p.exists():
+            return FileResponse(p)
+    raise HTTPException(404, "aucune image de calibration")
 
 
 @app.post("/api/calibration")
-def post_calibration():
-    raise HTTPException(501, "Itération 2 — pas encore implémenté")
+async def post_calibration(
+    image: UploadFile = File(..., description="photo zénithale du tableau"),
+    corners: str = Form(..., description="JSON [[x,y],[x,y],[x,y],[x,y]] — TL,TR,BR,BL"),
+    image_size: str = Form(..., description='JSON {"w":..., "h":...} — taille rendue côté front'),
+):
+    """
+    Reçoit la photo + 4 coins (en coordonnées de l'image rendue côté front, après scaling)
+    + la taille de l'image rendue. Convertit les coins vers les coordonnées de l'image
+    originale, calcule l'homographie, sauvegarde tout.
+    """
+    try:
+        corners_in = json.loads(corners)
+        size_in = json.loads(image_size)
+    except json.JSONDecodeError as e:
+        raise HTTPException(400, f"corners/image_size doit être du JSON: {e}")
+
+    if not isinstance(corners_in, list) or len(corners_in) != 4:
+        raise HTTPException(400, "corners doit être une liste de 4 [x, y]")
+
+    if not (isinstance(size_in, dict) and "w" in size_in and "h" in size_in):
+        raise HTTPException(400, 'image_size doit être {"w":..., "h":...}')
+
+    # Sauvegarde de la photo (extension préservée si jpg/png).
+    suffix = (image.filename or "").lower().rsplit(".", 1)[-1]
+    if suffix not in {"jpg", "jpeg", "png"}:
+        suffix = "jpg"
+    # Nettoie d'éventuelles photos précédentes.
+    for ext in ("jpg", "jpeg", "png"):
+        old = CALIB_DIR / f"photo.{ext}"
+        if old.exists():
+            old.unlink()
+    target = CALIB_DIR / f"photo.{suffix}"
+    with target.open("wb") as f:
+        shutil.copyfileobj(image.file, f)
+
+    # Décompresse pour récupérer la taille réelle.
+    import cv2  # import local pour démarrage rapide
+    img = cv2.imread(str(target))
+    if img is None:
+        target.unlink(missing_ok=True)
+        raise HTTPException(400, "image illisible")
+    real_h, real_w = img.shape[:2]
+
+    # Re-projection des coins du référentiel front (size_in) vers le référentiel image originale.
+    sx = real_w / float(size_in["w"]) if size_in["w"] else 1.0
+    sy = real_h / float(size_in["h"]) if size_in["h"] else 1.0
+    corners_real = [[float(c[0]) * sx, float(c[1]) * sy] for c in corners_in]
+
+    tableau = _load_tableau()
+    H_image_to_grid, H_grid_to_image = compute_homographies(
+        corners_real, tableau["rows"], tableau["cols"]
+    )
+    bboxes = cells_to_bboxes(tableau, H_grid_to_image)
+
+    payload = {
+        "image_filename": target.name,
+        "image_size": {"w": int(real_w), "h": int(real_h)},
+        "corners_pixel": corners_real,
+        "rows": tableau["rows"],
+        "cols": tableau["cols"],
+        "homography_image_to_grid": H_image_to_grid.tolist(),
+        "homography_grid_to_image": H_grid_to_image.tolist(),
+        "cells": bboxes,
+    }
+    (CALIB_DIR / "calibration.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    log.info(
+        "calibration enregistrée — image %dx%d, 4 coins, %d cases",
+        real_w, real_h, len(bboxes),
+    )
+    return {"calibrated": True, **payload}
+
+
+@app.delete("/api/calibration")
+def delete_calibration():
+    """Réinitialise la calibration (efface calibration.json + photo)."""
+    f = CALIB_DIR / "calibration.json"
+    if f.exists():
+        f.unlink()
+    for ext in ("jpg", "jpeg", "png"):
+        p = CALIB_DIR / f"photo.{ext}"
+        if p.exists():
+            p.unlink()
+    return {"calibrated": False}
 
 
 @app.post("/api/process")
@@ -100,7 +199,6 @@ def post_learn():
 
 @app.get("/api/history")
 def get_history():
-    """Liste les sessions validées (corrections.jsonl)."""
     if not CORRECTIONS_PATH.exists():
         return {"sessions": []}
     sessions = []
