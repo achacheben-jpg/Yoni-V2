@@ -29,8 +29,10 @@ from fastapi.responses import FileResponse, JSONResponse
 # numpy + homography sont importés à l'usage (cv2 est lourd à charger en RAM contrainte).
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env.local")
-load_dotenv(ROOT / ".env")
+# override=True : sinon une variable shell vide (ex: ANTHROPIC_API_KEY="" exportée
+# par certaines apps) masque la valeur de .env.local.
+load_dotenv(ROOT / ".env.local", override=True)
+load_dotenv(ROOT / ".env", override=True)
 
 DATA_DIR = ROOT / "data"
 CALIB_DIR = DATA_DIR / "calibration"
