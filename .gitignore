@@ -21,8 +21,10 @@ data/sessions/*/
 data/calibration/*.png
 data/calibration/*.jpg
 data/calibration/*.jpeg
+data/calibration/calibration.json
 data/models/*.bin
 data/models/*.pt
+data/test/
 
 # Mais on garde les .gitkeep et l'index corrections.jsonl
 !data/sessions/.gitkeep

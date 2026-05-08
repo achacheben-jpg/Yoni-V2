@@ -188,8 +188,38 @@ def delete_calibration():
 
 
 @app.post("/api/process")
-def post_process():
-    raise HTTPException(501, "Itération 3 — pas encore implémenté")
+async def post_process(video: UploadFile = File(..., description="vidéo .mov ou .mp4")):
+    """
+    Reçoit une vidéo, lance le pipeline complet (extraction frames+audio,
+    détection pastille, pointages stables, projection cases, transcription Whisper)
+    et renvoie le résultat (sans encore les propositions Claude — itération 4).
+    """
+    import uuid
+    from pipeline import run_pipeline
+
+    calib_file = CALIB_DIR / "calibration.json"
+    if not calib_file.exists():
+        raise HTTPException(400, "calibration manquante — calibrer d'abord")
+    calibration = json.loads(calib_file.read_text(encoding="utf-8"))
+    tableau = _load_tableau()
+
+    session_id = uuid.uuid4().hex[:12]
+    session_dir = SESSIONS_DIR / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    suffix = (video.filename or "").lower().rsplit(".", 1)[-1]
+    if suffix not in {"mov", "mp4", "m4v", "avi", "mkv"}:
+        suffix = "mp4"
+    video_path = session_dir / f"video.{suffix}"
+    with video_path.open("wb") as f:
+        shutil.copyfileobj(video.file, f)
+
+    try:
+        result = run_pipeline(video_path, session_dir, calibration, tableau)
+    except Exception as e:
+        log.exception("pipeline KO")
+        raise HTTPException(500, f"pipeline a échoué : {e}") from e
+    return result
 
 
 @app.post("/api/learn")

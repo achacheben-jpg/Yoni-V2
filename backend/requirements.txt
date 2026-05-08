@@ -8,6 +8,6 @@ numpy==1.26.4
 scikit-learn==1.5.2
 faster-whisper==1.0.3
 anthropic==0.39.0
-imageio-ffmpeg==0.5.1
+static-ffmpeg==3.0
 requests==2.32.5
 
