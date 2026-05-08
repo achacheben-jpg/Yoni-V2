@@ -190,6 +190,79 @@ def delete_calibration():
     return {"calibrated": False}
 
 
+@app.post("/api/debug/detect")
+async def debug_detect(video: UploadFile = File(..., description="vidéo à diagnostiquer")):
+    """
+    Diagnostic de détection couleur sur une vidéo. Renvoie les stats fuchsia/vert fluo
+    sur un échantillon de frames, sans toucher à la calibration ni lancer le pipeline.
+    Utile quand /api/process échoue avec 'pastille non détectée'.
+    """
+    import shutil as _sh
+    import tempfile
+
+    import cv2
+    import numpy as np
+    from detect_fluo_marker import _detect_one_color, best_color_over_frames
+
+    # Sauve la vidéo dans un temp + extrait quelques frames via cv2.VideoCapture (pas besoin de ffmpeg).
+    suffix = (video.filename or "").lower().rsplit(".", 1)[-1] or "mp4"
+    with tempfile.NamedTemporaryFile(suffix="." + suffix, delete=False) as tmp:
+        _sh.copyfileobj(video.file, tmp)
+        tmp_path = tmp.name
+
+    try:
+        cap = cv2.VideoCapture(tmp_path)
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        if total <= 0:
+            raise HTTPException(400, "vidéo illisible")
+        idx = np.linspace(0, total - 1, min(30, total)).astype(int)
+        frames = []
+        for i in idx:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, int(i))
+            ret, f = cap.read()
+            if ret and f is not None:
+                frames.append(f)
+        cap.release()
+        if not frames:
+            raise HTTPException(400, "aucune frame extraite")
+
+        color, stats = best_color_over_frames(frames)
+
+        # Échantillon de détections détaillé sur 5 frames pour debug
+        sample_dets = []
+        for j, f in enumerate(frames[:: max(1, len(frames) // 5)][:5]):
+            for c in ("fuchsia", "green_fluo"):
+                d = _detect_one_color(f, c)  # type: ignore[arg-type]
+                if d:
+                    sample_dets.append(
+                        {
+                            "frame_idx_approx": j,
+                            "color": c,
+                            "x": d.x, "y": d.y, "area": d.area,
+                            "circularity": round(d.confidence, 2),
+                        }
+                    )
+
+        return {
+            "nb_frames_analysees": len(frames),
+            "couleur_detectee": color,
+            "stats": stats,
+            "echantillon_detections": sample_dets,
+            "diagnostic": (
+                f"OK : couleur '{color}' détectée à {stats[color]['ratio']*100:.0f}% des frames"
+                if color else
+                "Aucune couleur fluo détectée. Pistes : éclairage trop faible / "
+                "pastille pas assez saturée / couleur hors plage HSV. "
+                "Vérifie 'echantillon_detections' pour voir si quelque chose passe."
+            ),
+        }
+    finally:
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 @app.post("/api/process")
 async def post_process(video: UploadFile = File(..., description="vidéo .mov ou .mp4")):
     """

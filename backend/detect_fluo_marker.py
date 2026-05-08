@@ -15,21 +15,25 @@ Color = Literal["fuchsia", "green_fluo"]
 
 # Seuils HSV ajustés pour pastilles fluo. Modifiable selon l'éclairage.
 # Note : OpenCV utilise H ∈ [0, 179], S et V ∈ [0, 255].
+# Seuils volontairement permissifs (lumière maison réelle, pas studio).
 HSV_RANGES = {
     "fuchsia": [
-        # Le magenta/fuchsia est entre rouge (~165) et violet (~175). Large plage car les fluos saturent.
-        (np.array([140, 80, 120]), np.array([175, 255, 255])),
+        # Magenta/fuchsia : H entre rouge (~140) et magenta (~175).
+        (np.array([135, 50, 90]), np.array([179, 255, 255])),
+        # Wraparound vers les rouges purs (H 0-10) qu'on retrouve sur certains fluos roses.
+        (np.array([0, 80, 120]), np.array([10, 255, 255])),
     ],
     "green_fluo": [
-        # Vert fluo bien saturé, large plage Hue 35-85.
-        (np.array([35, 80, 120]), np.array([85, 255, 255])),
+        # Vert fluo : large plage Hue 30-90, S/V relâchés.
+        (np.array([30, 50, 90]), np.array([90, 255, 255])),
     ],
 }
 
 # Surface minimale en pixels pour qu'un blob soit considéré comme la pastille.
-MIN_AREA = 80
+# Réduit pour gérer les pastilles loin de la caméra ou petites.
+MIN_AREA = 40
 # Surface maximale (pour exclure les vastes zones colorées qui ne sont pas la pastille).
-MAX_AREA = 50_000
+MAX_AREA = 80_000
 
 
 @dataclass
@@ -104,7 +108,8 @@ def best_color_over_frames(frames: list[np.ndarray]) -> tuple[Optional[Color], d
         stats[color] = {"detected": detected, "ratio": detected / max(1, len(frames))}
 
     # Préférence fuchsia si elle dépasse seuil, sinon green_fluo.
-    threshold = 0.30
+    # Seuil relâché à 15 % : la pastille est souvent occultée par la main pendant les pointages.
+    threshold = 0.15
     if stats["fuchsia"]["ratio"] >= threshold and stats["fuchsia"]["ratio"] >= stats["green_fluo"]["ratio"]:
         return "fuchsia", stats
     if stats["green_fluo"]["ratio"] >= threshold:

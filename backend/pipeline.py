@@ -40,7 +40,7 @@ FRAMES_FPS = 10
 MAX_JUMP_PX = 15.0          # mouvement max au sein d'un pointage stable
 MIN_POINTING_DURATION_S = 0.4
 MAX_GAP_S = 0.5             # trou max sans détection avant de fermer un cluster
-COLOR_THRESHOLD_RATIO = 0.30
+COLOR_THRESHOLD_RATIO = 0.15  # 15% — suffisant car la pastille peut être cachée par la main
 
 
 @dataclass
