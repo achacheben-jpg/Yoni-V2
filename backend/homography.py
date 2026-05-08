@@ -14,10 +14,12 @@ Pour mapper un pointage en pixel → case :
 """
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
-import cv2
 import numpy as np
+
+if TYPE_CHECKING:
+    import cv2
 
 Point = tuple[float, float]
 
@@ -39,6 +41,8 @@ def compute_homographies(
     corners_image : 4 points (TL, TR, BR, BL) en pixels image.
     Retourne (H_image_to_grid, H_grid_to_image).
     """
+    import cv2  # import paresseux : cv2 est lourd à charger
+
     if len(corners_image) != 4:
         raise ValueError("4 coins exactement attendus (TL, TR, BR, BL)")
 
@@ -56,6 +60,8 @@ def cells_to_bboxes(
     tableau: dict, H_grid_to_image: np.ndarray
 ) -> list[CellBBox]:
     """Pour chaque case du tableau, calcule ses 4 coins et son centre dans l'image."""
+    import cv2  # import paresseux
+
     rows = tableau["rows"]
     cols = tableau["cols"]
     bboxes: list[CellBBox] = []
@@ -95,6 +101,8 @@ def pixel_to_cell(
     Convertit un pixel (x, y) en (row, col) via l'homographie. Retourne (row, col, gx, gy).
     Si le point est hors-grille, row et col valent None.
     """
+    import cv2  # import paresseux
+
     pt = np.array([[[x, y]]], dtype=np.float32)
     out = cv2.perspectiveTransform(pt, H_image_to_grid).reshape(-1)
     gx, gy = float(out[0]), float(out[1])

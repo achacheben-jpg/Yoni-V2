@@ -21,13 +21,12 @@ import shutil
 from pathlib import Path
 from typing import List
 
-import numpy as np
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
-from homography import cells_to_bboxes, compute_homographies
+# numpy + homography sont importés à l'usage (cv2 est lourd à charger en RAM contrainte).
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env.local")
@@ -136,7 +135,9 @@ async def post_calibration(
         shutil.copyfileobj(image.file, f)
 
     # Décompresse pour récupérer la taille réelle.
-    import cv2  # import local pour démarrage rapide
+    import cv2  # import paresseux
+    from homography import cells_to_bboxes, compute_homographies
+
     img = cv2.imread(str(target))
     if img is None:
         target.unlink(missing_ok=True)
