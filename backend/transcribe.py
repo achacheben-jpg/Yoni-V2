@@ -13,12 +13,13 @@ from __future__ import annotations
 import os
 import threading
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
-from faster_whisper import WhisperModel
+if TYPE_CHECKING:
+    from faster_whisper import WhisperModel
 
 _lock = threading.Lock()
-_model: WhisperModel | None = None
+_model: "WhisperModel | None" = None
 _model_size: str | None = None
 
 
@@ -34,13 +35,13 @@ class TranscriptionResult(TypedDict):
     segments: list[Segment]
 
 
-def _get_model() -> WhisperModel:
+def _get_model() -> "WhisperModel":
     global _model, _model_size
     size = os.getenv("WHISPER_MODEL", "medium")
     with _lock:
         if _model is None or _model_size != size:
-            # CPU avec int8 — bon compromis vitesse/RAM sur Apple Silicon.
-            # (faster-whisper ne supporte pas Metal/MPS pour l'instant.)
+            # Import paresseux : éviter le coût RAM tant qu'on n'appelle pas vraiment Whisper.
+            from faster_whisper import WhisperModel
             _model = WhisperModel(size, device="cpu", compute_type="int8")
             _model_size = size
     return _model
