@@ -205,12 +205,21 @@ export function Calibration({
         Upload une photo zénithale du tableau seul. Tu cliqueras ensuite sur les 4 coins dans l'ordre :
         haut-gauche, haut-droit, bas-droit, bas-gauche.
       </p>
-      <input
-        type="file"
-        accept="image/jpeg,image/png"
-        onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
-        className="block text-sm"
-      />
+      <label className="block cursor-pointer">
+        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center bg-slate-50 hover:bg-slate-100 transition">
+          <div className="text-3xl mb-2">📷</div>
+          <div className="text-sm font-medium text-slate-700">
+            Cliquer pour choisir une photo du tableau
+          </div>
+          <div className="text-xs text-slate-500 mt-1">JPEG ou PNG · vue zénithale, tableau bien à plat</div>
+        </div>
+        <input
+          type="file"
+          accept="image/jpeg,image/png"
+          className="hidden"
+          onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
+        />
+      </label>
       {error && <div className="text-sm text-red-700">{error}</div>}
     </div>
   );
@@ -294,9 +303,9 @@ function CalibratedView({
       <button
         onClick={onRecalibrate}
         disabled={submitting}
-        className="px-3 py-2 rounded bg-white border border-slate-300 text-sm"
+        className="px-3 py-2 rounded bg-white border border-slate-300 text-sm hover:bg-slate-50"
       >
-        Recalibrer
+        🔄 Changer de photo / recalibrer
       </button>
     </div>
   );
