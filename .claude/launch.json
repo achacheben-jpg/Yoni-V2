@@ -2,22 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "backend (FastAPI/uvicorn)",
-      "runtimeExecutable": "/Users/benjaminachache/Documents/Yoni v2/.venv/bin/python",
-      "runtimeArgs": [
-        "-m",
-        "uvicorn",
-        "app:app",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8000",
-        "--app-dir",
-        "/Users/benjaminachache/Documents/Yoni v2/backend"
-      ],
-      "port": 8000
-    },
-    {
       "name": "frontend (Vite)",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -28,5 +12,6 @@
       ],
       "port": 5173
     }
-  ]
+  ],
+  "_comment": "Le backend FastAPI ne figure pas ici : il dépend d'un venv Python dans Documents/, et le sandbox de Claude Preview n'a pas accès à .venv/pyvenv.cfg (TCC). Lance-le séparément via nohup : 'source .venv/bin/activate && cd backend && nohup uvicorn app:app --host 127.0.0.1 --port 8000 > /tmp/yoni_backend.log 2>&1 &'. Le proxy Vite (/api/*) gère la com avec le backend."
 }
