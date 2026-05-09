@@ -95,3 +95,9 @@ export const IconUpload = (p: IconProps) => (
     <path d="M5 4h14" />
   </svg>
 );
+
+export const IconRecord = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
+  </svg>
+);

@@ -4,10 +4,19 @@ import {
   IconDownload,
   IconPaperclip,
   IconPlay,
+  IconRecord,
   IconRefresh,
   IconSquare,
 } from "./Icon";
 import type { ProcessResult } from "../types";
+
+/**
+ * Deux modes d'enregistrement :
+ *   - "auto"    : "Démarrer la session" → enregistre + envoie direct au pipeline (workflow Yoni en live)
+ *   - "preview" : "Enregistrer une session" → enregistre + aperçu avec 3 actions (envoyer/télécharger/recommencer)
+ *   - upload de fichier → toujours mode "preview"
+ */
+type RecMode = "auto" | "preview";
 
 export function Session({
   calibrated,
@@ -20,9 +29,10 @@ export function Session({
   const [recording, setRecording] = useState(false);
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [recMode, setRecMode] = useState<RecMode>("auto");
   const liveVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Aperçu post-capture (en attente d'une décision : envoyer / télécharger / recommencer)
+  // Aperçu post-capture
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [recordedFilename, setRecordedFilename] = useState<string>("session.webm");
@@ -31,7 +41,6 @@ export function Session({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Branche le flux live dès qu'il est prêt.
   useEffect(() => {
     if (liveVideoRef.current && stream) {
       liveVideoRef.current.srcObject = stream;
@@ -39,7 +48,6 @@ export function Session({
     }
   }, [stream]);
 
-  // URL d'aperçu pour la vidéo enregistrée.
   useEffect(() => {
     if (!recordedBlob) {
       setRecordedUrl(null);
@@ -50,7 +58,6 @@ export function Session({
     return () => URL.revokeObjectURL(url);
   }, [recordedBlob]);
 
-  // Cleanup du flux si le composant se démonte pendant l'enregistrement.
   useEffect(() => {
     return () => {
       stream?.getTracks().forEach((t) => t.stop());
@@ -58,9 +65,10 @@ export function Session({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startRecording = async () => {
+  const startRecording = async (mode: RecMode) => {
     setError(null);
     setRecordedBlob(null);
+    setRecMode(mode);
     try {
       const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       setStream(s);
@@ -71,18 +79,22 @@ export function Session({
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.push(e.data);
       };
-      mr.onstop = () => {
+      mr.onstop = async () => {
         const blob = new Blob(chunks, { type: mr.mimeType || "video/webm" });
+        const filename = blob.type.includes("mp4") ? "session.mp4" : "session.webm";
         s.getTracks().forEach((t) => t.stop());
         setStream(null);
         setRecorder(null);
         setRecording(false);
-        // Option A : on STOCKE l'enregistrement et on attend la décision de l'utilisateur,
-        // au lieu d'envoyer automatiquement au pipeline.
-        setRecordedBlob(blob);
-        setRecordedFilename(
-          blob.type.includes("mp4") ? "session.mp4" : "session.webm",
-        );
+
+        if (mode === "auto") {
+          // Workflow live : envoi direct au pipeline.
+          await sendBlobToPipeline(blob, filename);
+        } else {
+          // Workflow archive : on garde la vidéo pour l'aperçu.
+          setRecordedBlob(blob);
+          setRecordedFilename(filename);
+        }
       };
       mr.start();
       setRecorder(mr);
@@ -92,9 +104,7 @@ export function Session({
     }
   };
 
-  const stopRecording = () => {
-    recorder?.stop();
-  };
+  const stopRecording = () => recorder?.stop();
 
   const handleFile = (file: File) => {
     setRecordedBlob(file);
@@ -102,13 +112,12 @@ export function Session({
     setError(null);
   };
 
-  const sendForProcessing = async () => {
-    if (!recordedBlob) return;
+  const sendBlobToPipeline = async (blob: Blob, filename: string) => {
     setUploading(true);
     setError(null);
     try {
       const fd = new FormData();
-      fd.append("video", recordedBlob, recordedFilename);
+      fd.append("video", blob, filename);
       const r = await fetch("/api/process", { method: "POST", body: fd });
       const text = await r.text();
       if (!r.ok) {
@@ -120,12 +129,17 @@ export function Session({
         }
       }
       onResult(JSON.parse(text));
-      setRecordedBlob(null); // l'aperçu disparaît après envoi réussi
+      setRecordedBlob(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setUploading(false);
     }
+  };
+
+  const sendForProcessing = () => {
+    if (!recordedBlob) return;
+    void sendBlobToPipeline(recordedBlob, recordedFilename);
   };
 
   const downloadRecording = () => {
@@ -150,8 +164,16 @@ export function Session({
     return (
       <div className="space-y-4">
         <div className="quote-warm">
-          Enregistrement en cours. Lis chaque case à voix haute pendant que Yoni pointe à la
-          pastille fluo, puis dis la phrase finale et clique « Terminer ».
+          {recMode === "auto"
+            ? "Enregistrement en cours — la vidéo sera envoyée au pipeline dès l'arrêt. Lis chaque case à voix haute pendant que Yoni pointe à la pastille fluo, puis dis la phrase finale et clique « Terminer »."
+            : "Enregistrement en cours — la vidéo sera disponible en aperçu à la fin. Tu décideras ensuite de l'envoyer pour traitement, de la télécharger ou de recommencer."}
+        </div>
+        <div
+          className="flex items-center gap-2"
+          style={{ color: "var(--color-clay)" }}
+        >
+          <span className="pill-dot" style={{ background: "var(--color-clay)", animation: "rec-blink 1.2s ease-in-out infinite" }} />
+          <span className="font-mono text-[11px] uppercase tracking-wide">REC</span>
         </div>
         <div
           className="overflow-hidden"
@@ -172,6 +194,7 @@ export function Session({
           <IconSquare size={12} />
           <span>Terminer</span>
         </button>
+        <style>{`@keyframes rec-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
       </div>
     );
   }
@@ -183,10 +206,7 @@ export function Session({
     const sizeMo = (recordedBlob.size / 1024 / 1024).toFixed(1);
     return (
       <div className="space-y-4">
-        <div
-          className="text-sm"
-          style={{ color: "var(--color-ink-soft)" }}
-        >
+        <div className="text-sm" style={{ color: "var(--color-ink-soft)" }}>
           Vérifie l'enregistrement, puis choisis : envoyer pour traitement (Claude reconstruit
           la phrase), télécharger en local, ou recommencer.
         </div>
@@ -207,16 +227,10 @@ export function Session({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className="pill"
-            style={{ background: "var(--color-canvas)", color: "var(--color-ink-soft)" }}
-          >
+          <span className="pill" style={{ background: "var(--color-canvas)", color: "var(--color-ink-soft)" }}>
             {recordedFilename}
           </span>
-          <span
-            className="pill"
-            style={{ background: "var(--color-canvas)", color: "var(--color-ink-soft)" }}
-          >
+          <span className="pill" style={{ background: "var(--color-canvas)", color: "var(--color-ink-soft)" }}>
             {sizeMo} Mo
           </span>
         </div>
@@ -273,19 +287,25 @@ export function Session({
         qu'il pointe à la pastille fluo, puis dit la phrase finale.
       </div>
 
-      {!calibrated && (
-        <div className="banner-amber">
-          Calibration requise pour le traitement automatique — tu peux toutefois enregistrer
-          ou téléverser une vidéo et la garder en local.
-        </div>
-      )}
-
+      {/* Action principale : enregistrer + traiter immédiatement */}
       <div className="flex flex-wrap gap-2">
-        <button onClick={startRecording} className="btn-primary">
+        <button
+          onClick={() => startRecording("auto")}
+          disabled={!calibrated || uploading}
+          className="btn-primary"
+          title={!calibrated ? "Calibration requise pour le traitement automatique" : undefined}
+        >
           <IconPlay size={14} />
           <span>Démarrer la session</span>
         </button>
-
+        <button
+          onClick={() => startRecording("preview")}
+          disabled={uploading}
+          className="btn-ghost"
+        >
+          <IconRecord size={10} style={{ color: "var(--color-clay)" }} />
+          <span>Enregistrer une session</span>
+        </button>
         <label className="btn-ghost cursor-pointer">
           <IconPaperclip size={14} />
           <span>Téléverser un .mov / .mp4</span>
@@ -301,6 +321,21 @@ export function Session({
           />
         </label>
       </div>
+
+      <div className="text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
+        <span className="font-mono">▸ Démarrer la session</span> envoie la vidéo
+        directement au pipeline.
+        <br />
+        <span className="font-mono">● Enregistrer une session</span> ouvre un aperçu à la fin
+        — tu décides alors d'envoyer ou télécharger.
+      </div>
+
+      {!calibrated && (
+        <div className="banner-amber">
+          Calibration requise pour le traitement automatique — tu peux toutefois enregistrer
+          ou téléverser une vidéo et la garder en local.
+        </div>
+      )}
 
       {error && <div className="banner-error">Erreur : {error}</div>}
     </div>
