@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IconPaperclip, IconPlay, IconSquare } from "./Icon";
 import type { ProcessResult } from "../types";
 
 export function Session({
@@ -67,7 +68,6 @@ export function Session({
       const r = await fetch("/api/process", { method: "POST", body: fd });
       const text = await r.text();
       if (!r.ok) {
-        // FastAPI renvoie souvent du JSON d'erreur lisible.
         try {
           const j = JSON.parse(text);
           throw new Error(j.detail || text);
@@ -85,22 +85,34 @@ export function Session({
 
   if (!calibrated) {
     return (
-      <p className="text-sm text-amber-700">
-        Calibration requise avant de démarrer une session. Calibre d'abord (section 1).
-      </p>
+      <div className="banner-amber">
+        Calibration requise avant de démarrer une session — passe à la section <strong>I. Calibration</strong>.
+      </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-slate-600">
-        Mode lecture vocale : la personne près de Yoni lit chaque case à voix haute pendant
-        qu'elle pointe à la pastille fluo, puis dit la phrase finale.
-      </p>
+    <div className="space-y-4">
+      <div className="quote-warm">
+        Mode lecture vocale : la personne près de Yoni lit chaque case à voix haute pendant qu'il
+        pointe à la pastille fluo, puis dit la phrase finale.
+      </div>
 
       {recording && stream && (
-        <div className="rounded border border-slate-300 overflow-hidden bg-black">
-          <video ref={videoRef} muted playsInline className="w-full max-h-72 object-contain" />
+        <div
+          className="overflow-hidden"
+          style={{
+            background: "var(--color-ink)",
+            borderRadius: "var(--radius-card)",
+            maxHeight: 320,
+          }}
+        >
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className="w-full max-h-80 object-contain"
+          />
         </div>
       )}
 
@@ -109,26 +121,21 @@ export function Session({
           <button
             onClick={startRecording}
             disabled={uploading}
-            className="px-5 py-3 rounded bg-green-600 text-white font-semibold disabled:bg-slate-300 disabled:text-slate-500 min-h-[44px]"
+            className="btn-primary"
           >
-            ▶ Démarrer la session
+            <IconPlay size={14} />
+            <span>Démarrer la session</span>
           </button>
         ) : (
-          <button
-            onClick={stopRecording}
-            className="px-5 py-3 rounded bg-red-600 text-white font-semibold min-h-[44px]"
-          >
-            ■ Terminer et uploader
+          <button onClick={stopRecording} className="btn-danger">
+            <IconSquare size={12} />
+            <span>Terminer et uploader</span>
           </button>
         )}
 
-        <label
-          className={
-            "px-4 py-3 rounded border border-slate-300 bg-white text-sm cursor-pointer min-h-[44px] inline-flex items-center " +
-            (uploading || recording ? "opacity-50 pointer-events-none" : "hover:bg-slate-50")
-          }
-        >
-          📁 Uploader un .mov/.mp4
+        <label className={"btn-ghost cursor-pointer " + ((uploading || recording) ? "opacity-50 pointer-events-none" : "")}>
+          <IconPaperclip size={14} />
+          <span>Uploader un .mov / .mp4</span>
           <input
             type="file"
             accept="video/*"
@@ -144,17 +151,16 @@ export function Session({
       </div>
 
       {uploading && (
-        <div className="rounded bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
-          Pipeline en cours (extraction frames, détection pastille, transcription audio, appel
-          Claude). Ça prend généralement 30 à 60 secondes…
+        <div className="space-y-2">
+          <div className="banner-amber">
+            Pipeline en cours (extraction frames, détection pastille, transcription audio, appel
+            Claude). Compter 30 à 60 secondes — plus si premier lancement.
+          </div>
+          <div className="progress-indeterminate" aria-label="Traitement en cours" />
         </div>
       )}
 
-      {error && (
-        <div className="rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-          Erreur : {error}
-        </div>
-      )}
+      {error && <div className="banner-error">Erreur : {error}</div>}
     </div>
   );
 }
