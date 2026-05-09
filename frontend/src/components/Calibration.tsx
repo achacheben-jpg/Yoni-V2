@@ -32,6 +32,7 @@ export function Calibration({
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [corners, setCorners] = useState<[number, number][]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [autoCalibrating, setAutoCalibrating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [renderedSize, setRenderedSize] = useState<{ w: number; h: number } | null>(null);
@@ -160,6 +161,37 @@ export function Calibration({
     }
   };
 
+  const tryAutoCalibrate = async () => {
+    if (!pendingFile) return;
+    setAutoCalibrating(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("image", pendingFile);
+      const r = await fetch("/api/calibration/auto", { method: "POST", body: fd });
+      if (!r.ok) {
+        const t = await r.text();
+        let detail = t;
+        try {
+          detail = JSON.parse(t).detail || t;
+        } catch {
+          /* texte brut */
+        }
+        throw new Error(detail);
+      }
+      // Succès → on sort du mode pendingUrl, la vue calibrée prend le relais
+      setPendingFile(null);
+      setCorners([]);
+      onChanged();
+    } catch (e) {
+      setError(
+        `Auto-calibrage échoué : ${e instanceof Error ? e.message : String(e)} — clique les 4 coins manuellement ci-dessous.`,
+      );
+    } finally {
+      setAutoCalibrating(false);
+    }
+  };
+
   const recalibrate = async () => {
     setSubmitting(true);
     setError(null);
@@ -218,6 +250,37 @@ export function Calibration({
   if (pendingUrl) {
     return (
       <div className="space-y-4">
+        {/* Auto-calibrage via détection des 4 pastilles vertes aux coins */}
+        <div
+          className="flex items-start gap-3 p-3"
+          style={{
+            background: "var(--color-sage-soft)",
+            border: "1px solid rgba(106,138,110,0.3)",
+            borderRadius: "var(--radius-control)",
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div
+              className="font-display text-[14px] font-semibold"
+              style={{ color: "var(--color-ink)" }}
+            >
+              Auto-calibrage
+            </div>
+            <div className="text-[12px]" style={{ color: "var(--color-ink-soft)" }}>
+              Si ton tableau a 4 pastilles vertes aux coins, je peux les détecter
+              automatiquement. Sinon, clique les 4 coins manuellement ci-dessous.
+            </div>
+          </div>
+          <button
+            onClick={tryAutoCalibrate}
+            disabled={autoCalibrating || submitting}
+            className="btn-primary btn-sm"
+          >
+            <IconCheck size={14} />
+            <span>{autoCalibrating ? "Détection…" : "Détecter les coins"}</span>
+          </button>
+        </div>
+
         <Stepper currentStep={corners.length} />
 
         <div className="relative inline-block max-w-full">

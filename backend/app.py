@@ -174,6 +174,123 @@ async def post_calibration(
     return {"calibrated": True, **payload}
 
 
+@app.post("/api/calibration/auto")
+async def post_calibration_auto(
+    image: UploadFile = File(..., description="photo du tableau avec 4 pastilles vertes aux coins"),
+):
+    """
+    Détecte automatiquement 4 pastilles vertes (HSV vert fluo) placées aux coins
+    du tableau, calcule l'homographie et calibre. Renvoie 400 si moins de 4
+    blobs verts détectés.
+
+    Heuristique de tri TL/TR/BR/BL :
+        TL = blob qui minimise (x + y)
+        BR = blob qui maximise (x + y)
+        TR = blob qui maximise (x - y)
+        BL = blob qui minimise (x - y)
+    Robuste à une perspective modérée.
+    """
+    import cv2
+    import numpy as np
+
+    from homography import cells_to_bboxes, compute_homographies
+
+    # Sauvegarde de la photo (idem POST /api/calibration manuel).
+    suffix = (image.filename or "").lower().rsplit(".", 1)[-1]
+    if suffix not in {"jpg", "jpeg", "png"}:
+        suffix = "jpg"
+    for ext in ("jpg", "jpeg", "png"):
+        old = CALIB_DIR / f"photo.{ext}"
+        if old.exists():
+            old.unlink()
+    target = CALIB_DIR / f"photo.{suffix}"
+    with target.open("wb") as f:
+        shutil.copyfileobj(image.file, f)
+
+    img = cv2.imread(str(target))
+    if img is None:
+        target.unlink(missing_ok=True)
+        raise HTTPException(400, "image illisible")
+    real_h, real_w = img.shape[:2]
+
+    # Détection des blobs verts.
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, np.array([30, 50, 80]), np.array([90, 255, 255]))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    blobs = []
+    for c in contours:
+        area = cv2.contourArea(c)
+        if area < 50:  # trop petit, probablement bruit
+            continue
+        M = cv2.moments(c)
+        if M["m00"] == 0:
+            continue
+        cx = M["m10"] / M["m00"]
+        cy = M["m01"] / M["m00"]
+        blobs.append({"x": float(cx), "y": float(cy), "area": float(area)})
+
+    if len(blobs) < 4:
+        raise HTTPException(
+            400,
+            f"Seulement {len(blobs)} pastille(s) verte(s) détectée(s) — il en faut au moins 4 aux coins du tableau. "
+            "Vérifie l'éclairage, la couleur des pastilles, ou clique les 4 coins manuellement.",
+        )
+
+    # Garde les 8 plus gros blobs comme candidats (élimine les petits faux positifs).
+    blobs.sort(key=lambda b: -b["area"])
+    candidates = blobs[: max(4, min(8, len(blobs)))]
+
+    # Trie en TL, TR, BR, BL via les diagonales.
+    tl = min(candidates, key=lambda b: b["x"] + b["y"])
+    br = max(candidates, key=lambda b: b["x"] + b["y"])
+    tr = max(candidates, key=lambda b: b["x"] - b["y"])
+    bl = min(candidates, key=lambda b: b["x"] - b["y"])
+
+    # Sanity-check : les 4 doivent être distincts (sinon mauvaise répartition).
+    chosen = {(round(c["x"], 1), round(c["y"], 1)) for c in (tl, tr, br, bl)}
+    if len(chosen) < 4:
+        raise HTTPException(
+            400,
+            "Impossible d'identifier 4 coins distincts parmi les pastilles vertes détectées. "
+            "Vérifie qu'il y a bien une pastille à chacun des 4 coins du tableau.",
+        )
+
+    corners_real = [
+        [tl["x"], tl["y"]],
+        [tr["x"], tr["y"]],
+        [br["x"], br["y"]],
+        [bl["x"], bl["y"]],
+    ]
+
+    tableau = _load_tableau()
+    H_image_to_norm, H_norm_to_image = compute_homographies(corners_real)
+    bboxes = cells_to_bboxes(tableau, H_norm_to_image)
+
+    payload = {
+        "image_filename": target.name,
+        "image_size": {"w": int(real_w), "h": int(real_h)},
+        "corners_pixel": corners_real,
+        "nb_cases": len(bboxes),
+        "homography_image_to_norm": H_image_to_norm.tolist(),
+        "homography_norm_to_image": H_norm_to_image.tolist(),
+        "cells": bboxes,
+        "auto_detected": True,
+        "nb_pastilles_detectees": len(blobs),
+    }
+    (CALIB_DIR / "calibration.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    log.info(
+        "calibration AUTO — image %dx%d, %d blobs verts détectés, 4 coins choisis",
+        real_w, real_h, len(blobs),
+    )
+    return {"calibrated": True, **payload}
+
+
 @app.delete("/api/calibration")
 def delete_calibration():
     """Réinitialise la calibration (efface calibration.json + photo)."""
