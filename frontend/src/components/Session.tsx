@@ -289,14 +289,17 @@ export function Session({
         </button>
         <label className="btn-ghost cursor-pointer">
           <IconPaperclip size={14} />
-          <span>Téléverser un .mov / .mp4</span>
+          <span>
+            {takes.length === 0 ? "Téléverser des vidéos" : "+ Ajouter des fichiers"}
+          </span>
           <input
             type="file"
             accept="video/*"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleFile(f);
+              const files = Array.from(e.target.files ?? []);
+              files.forEach((f) => handleFile(f));
               e.target.value = "";
             }}
           />
@@ -306,10 +309,11 @@ export function Session({
       {takes.length === 0 && (
         <div className="text-[12px]" style={{ color: "var(--color-ink-faint)" }}>
           <span className="font-mono">▸ Démarrer la session</span> envoie la vidéo
-          directement au pipeline.
+          directement au pipeline (single-shot).
           <br />
-          <span className="font-mono">● Enregistrer une session</span> ouvre un mode rafale —
-          tu peux accumuler plusieurs prises avant de choisir laquelle traiter.
+          <span className="font-mono">● Enregistrer une session</span> ou{" "}
+          <span className="font-mono">📎 Téléverser des vidéos</span> (sélection multiple
+          possible) → mode rafale, tu accumules les prises et tu choisis laquelle traiter.
         </div>
       )}
 
