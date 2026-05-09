@@ -8,14 +8,12 @@ type CalibrationState = {
   calibrated: boolean;
   image_filename?: string;
   image_size?: { w: number; h: number };
-  rows?: number;
-  cols?: number;
+  nb_cases?: number;
   cells?: {
     id: string;
     label: string;
     type: string;
-    row: number;
-    col: number;
+    bbox_norm: [number, number, number, number];
     corners: [number, number][];
     center: [number, number];
   }[];

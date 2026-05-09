@@ -4,8 +4,7 @@ type Cell = {
   id: string;
   label: string;
   type: string;
-  row: number;
-  col: number;
+  bbox_norm: [number, number, number, number];
   corners: [number, number][];
   center: [number, number];
 };
@@ -14,8 +13,7 @@ type CalibrationData = {
   calibrated: boolean;
   image_filename?: string;
   image_size?: { w: number; h: number };
-  rows?: number;
-  cols?: number;
+  nb_cases?: number;
   cells?: Cell[];
 };
 
@@ -251,8 +249,8 @@ function CalibratedView({
   return (
     <div className="space-y-3">
       <div className="text-sm text-slate-600">
-        Tableau {data.rows}×{data.cols} — {data.cells!.length} cases. Vérifie que les rectangles
-        correspondent aux cases du tableau ; si ce n'est pas le cas, recalibre.
+        {data.cells!.length} cases sur le tableau. Vérifie que chaque rectangle bleu correspond
+        à la bonne case ; si ça déborde ou pointe à côté, signale-le pour ajuster <code>tableau.json</code>.
       </div>
       <div className="relative inline-block max-w-full">
         <img

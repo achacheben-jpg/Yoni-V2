@@ -152,19 +152,16 @@ async def post_calibration(
     corners_real = [[float(c[0]) * sx, float(c[1]) * sy] for c in corners_in]
 
     tableau = _load_tableau()
-    H_image_to_grid, H_grid_to_image = compute_homographies(
-        corners_real, tableau["rows"], tableau["cols"]
-    )
-    bboxes = cells_to_bboxes(tableau, H_grid_to_image)
+    H_image_to_norm, H_norm_to_image = compute_homographies(corners_real)
+    bboxes = cells_to_bboxes(tableau, H_norm_to_image)
 
     payload = {
         "image_filename": target.name,
         "image_size": {"w": int(real_w), "h": int(real_h)},
         "corners_pixel": corners_real,
-        "rows": tableau["rows"],
-        "cols": tableau["cols"],
-        "homography_image_to_grid": H_image_to_grid.tolist(),
-        "homography_grid_to_image": H_grid_to_image.tolist(),
+        "nb_cases": len(bboxes),
+        "homography_image_to_norm": H_image_to_norm.tolist(),
+        "homography_norm_to_image": H_norm_to_image.tolist(),
         "cells": bboxes,
     }
     (CALIB_DIR / "calibration.json").write_text(

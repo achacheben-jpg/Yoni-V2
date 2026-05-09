@@ -1,55 +1,87 @@
 {
-  "_comment": "Définition du tableau phonétique. Modifiable selon les besoins de Yoni. Les cellules sont parcourues ligne par ligne, gauche-droite, haut-bas. Chaque cellule a un id (utilisé par le pipeline), un label (affiché à l'écran/lu à voix haute), et un type (phoneme | mot | pronom).",
-  "rows": 6,
-  "cols": 6,
+  "version": 2,
+  "_comment": "Tableau de Yoni — grille IRRÉGULIÈRE. Chaque case a son propre bbox normalisé [x0,y0,x1,y1] dans [0,1]×[0,1] (0,0 = coin haut-gauche du tableau, 1,1 = coin bas-droit). À AJUSTER avec Ben en regardant l'overlay de la photo calibrée. Si une case déborde ou pointe au mauvais endroit, signaler {id, position attendue}.",
   "cells": [
-    [
-      {"id": "a",  "label": "A",  "type": "phoneme"},
-      {"id": "e",  "label": "E",  "type": "phoneme"},
-      {"id": "i",  "label": "I",  "type": "phoneme"},
-      {"id": "o",  "label": "O",  "type": "phoneme"},
-      {"id": "u",  "label": "U",  "type": "phoneme"},
-      {"id": "ou", "label": "OU", "type": "phoneme"}
-    ],
-    [
-      {"id": "e_acute", "label": "É",  "type": "phoneme"},
-      {"id": "e_grave", "label": "È",  "type": "phoneme"},
-      {"id": "an",      "label": "AN", "type": "phoneme"},
-      {"id": "on",      "label": "ON", "type": "phoneme"},
-      {"id": "in",      "label": "IN", "type": "phoneme"},
-      {"id": "eu",      "label": "EU", "type": "phoneme"}
-    ],
-    [
-      {"id": "b", "label": "B", "type": "phoneme"},
-      {"id": "c", "label": "C", "type": "phoneme"},
-      {"id": "d", "label": "D", "type": "phoneme"},
-      {"id": "f", "label": "F", "type": "phoneme"},
-      {"id": "g", "label": "G", "type": "phoneme"},
-      {"id": "h", "label": "H", "type": "phoneme"}
-    ],
-    [
-      {"id": "j", "label": "J", "type": "phoneme"},
-      {"id": "l", "label": "L", "type": "phoneme"},
-      {"id": "m", "label": "M", "type": "phoneme"},
-      {"id": "n", "label": "N", "type": "phoneme"},
-      {"id": "p", "label": "P", "type": "phoneme"},
-      {"id": "r", "label": "R", "type": "phoneme"}
-    ],
-    [
-      {"id": "s",  "label": "S",  "type": "phoneme"},
-      {"id": "t",  "label": "T",  "type": "phoneme"},
-      {"id": "v",  "label": "V",  "type": "phoneme"},
-      {"id": "z",  "label": "Z",  "type": "phoneme"},
-      {"id": "ch", "label": "CH", "type": "phoneme"},
-      {"id": "gn", "label": "GN", "type": "phoneme"}
-    ],
-    [
-      {"id": "je",   "label": "je",   "type": "pronom"},
-      {"id": "tu",   "label": "tu",   "type": "pronom"},
-      {"id": "il",   "label": "il",   "type": "pronom"},
-      {"id": "elle", "label": "elle", "type": "pronom"},
-      {"id": "oui",  "label": "oui",  "type": "mot"},
-      {"id": "non",  "label": "non",  "type": "mot"}
-    ]
+    {"id": "non",         "label": "non",            "type": "mot",      "bbox": [0.00, 0.00, 0.13, 0.10]},
+    {"id": "est_ce_que",  "label": "est-ce que ?",   "type": "mot",      "bbox": [0.13, 0.00, 0.42, 0.10]},
+    {"id": "ca_va",       "label": "ça va",          "type": "mot",      "bbox": [0.42, 0.00, 0.58, 0.10]},
+    {"id": "il_y_a",      "label": "il y a",         "type": "mot",      "bbox": [0.58, 0.00, 0.86, 0.10]},
+    {"id": "oui",         "label": "oui",            "type": "mot",      "bbox": [0.86, 0.00, 1.00, 0.10]},
+
+    {"id": "n0", "label": "0", "type": "chiffre", "bbox": [0.00, 0.10, 0.05, 0.175]},
+    {"id": "n1", "label": "1", "type": "chiffre", "bbox": [0.00, 0.175, 0.05, 0.25]},
+    {"id": "n2", "label": "2", "type": "chiffre", "bbox": [0.00, 0.25, 0.05, 0.325]},
+    {"id": "n3", "label": "3", "type": "chiffre", "bbox": [0.00, 0.325, 0.05, 0.40]},
+    {"id": "n4", "label": "4", "type": "chiffre", "bbox": [0.00, 0.40, 0.05, 0.475]},
+    {"id": "n5", "label": "5", "type": "chiffre", "bbox": [0.00, 0.475, 0.05, 0.55]},
+    {"id": "n6", "label": "6", "type": "chiffre", "bbox": [0.00, 0.55, 0.05, 0.625]},
+    {"id": "n7", "label": "7", "type": "chiffre", "bbox": [0.00, 0.625, 0.05, 0.70]},
+    {"id": "n8", "label": "8", "type": "chiffre", "bbox": [0.00, 0.70, 0.05, 0.775]},
+    {"id": "n9", "label": "9", "type": "chiffre", "bbox": [0.00, 0.775, 0.05, 0.85]},
+
+    {"id": "s_dot",        "label": "s.",              "type": "mot", "bbox": [0.05, 0.10, 0.13, 0.18]},
+    {"id": "v_dot",        "label": "v.",              "type": "mot", "bbox": [0.05, 0.18, 0.13, 0.26]},
+    {"id": "p_dot",        "label": "p.",              "type": "mot", "bbox": [0.05, 0.26, 0.13, 0.34]},
+    {"id": "merci",        "label": "merci",           "type": "mot", "bbox": [0.05, 0.34, 0.13, 0.50]},
+    {"id": "tu_as_compris","label": "tu as compris ?", "type": "mot", "bbox": [0.05, 0.50, 0.13, 0.85]},
+
+    {"id": "p",  "label": "p",  "type": "phoneme", "bbox": [0.13, 0.10, 0.23, 0.22]},
+    {"id": "t",  "label": "t",  "type": "phoneme", "bbox": [0.23, 0.10, 0.33, 0.22]},
+    {"id": "k",  "label": "k",  "type": "phoneme", "bbox": [0.33, 0.10, 0.43, 0.22]},
+    {"id": "r",  "label": "r",  "type": "phoneme", "bbox": [0.43, 0.10, 0.53, 0.22]},
+    {"id": "f",  "label": "f",  "type": "phoneme", "bbox": [0.53, 0.10, 0.63, 0.22]},
+    {"id": "s",  "label": "s",  "type": "phoneme", "bbox": [0.63, 0.10, 0.73, 0.22]},
+    {"id": "ch", "label": "ch", "type": "phoneme", "bbox": [0.73, 0.10, 0.85, 0.22]},
+
+    {"id": "b", "label": "b", "type": "phoneme", "bbox": [0.13, 0.22, 0.23, 0.34]},
+    {"id": "d", "label": "d", "type": "phoneme", "bbox": [0.23, 0.22, 0.33, 0.34]},
+    {"id": "g", "label": "g", "type": "phoneme", "bbox": [0.33, 0.22, 0.43, 0.34]},
+    {"id": "l", "label": "l", "type": "phoneme", "bbox": [0.43, 0.22, 0.53, 0.34]},
+    {"id": "v", "label": "v", "type": "phoneme", "bbox": [0.53, 0.22, 0.63, 0.34]},
+    {"id": "z", "label": "z", "type": "phoneme", "bbox": [0.63, 0.22, 0.73, 0.34]},
+    {"id": "j", "label": "j", "type": "phoneme", "bbox": [0.73, 0.22, 0.85, 0.34]},
+
+    {"id": "n",  "label": "n",  "type": "phoneme", "bbox": [0.85, 0.10, 0.95, 0.22]},
+    {"id": "gn", "label": "gn", "type": "phoneme", "bbox": [0.85, 0.22, 0.95, 0.34]},
+    {"id": "m",  "label": "m",  "type": "phoneme", "bbox": [0.85, 0.34, 0.95, 0.46]},
+
+    {"id": "vous", "label": "vous", "type": "pronom", "bbox": [0.13, 0.34, 0.25, 0.46]},
+    {"id": "il",   "label": "il",   "type": "pronom", "bbox": [0.25, 0.34, 0.37, 0.46]},
+    {"id": "je",   "label": "je",   "type": "pronom", "bbox": [0.37, 0.34, 0.49, 0.46]},
+    {"id": "tu",   "label": "tu",   "type": "pronom", "bbox": [0.49, 0.34, 0.61, 0.46]},
+    {"id": "elle", "label": "elle", "type": "pronom", "bbox": [0.61, 0.34, 0.73, 0.46]},
+    {"id": "nous", "label": "nous", "type": "pronom", "bbox": [0.73, 0.34, 0.85, 0.46]},
+
+    {"id": "e",       "label": "e", "type": "phoneme", "bbox": [0.13, 0.46, 0.25, 0.58]},
+    {"id": "u",       "label": "u", "type": "phoneme", "bbox": [0.25, 0.46, 0.37, 0.58]},
+    {"id": "a",       "label": "a", "type": "phoneme", "bbox": [0.37, 0.46, 0.49, 0.58]},
+    {"id": "o",       "label": "o", "type": "phoneme", "bbox": [0.49, 0.46, 0.61, 0.58]},
+    {"id": "e_acute", "label": "é", "type": "phoneme", "bbox": [0.61, 0.46, 0.73, 0.58]},
+    {"id": "i",       "label": "i", "type": "phoneme", "bbox": [0.73, 0.46, 0.85, 0.58]},
+
+    {"id": "oe",       "label": "oe", "type": "phoneme", "bbox": [0.13, 0.58, 0.25, 0.70]},
+    {"id": "ou",       "label": "ou", "type": "phoneme", "bbox": [0.25, 0.58, 0.37, 0.70]},
+    {"id": "an",       "label": "an", "type": "phoneme", "bbox": [0.37, 0.58, 0.49, 0.70]},
+    {"id": "on",       "label": "on", "type": "phoneme", "bbox": [0.49, 0.58, 0.61, 0.70]},
+    {"id": "e_grave",  "label": "è",  "type": "phoneme", "bbox": [0.61, 0.58, 0.73, 0.70]},
+    {"id": "in",       "label": "in", "type": "phoneme", "bbox": [0.73, 0.58, 0.85, 0.70]},
+
+    {"id": "ieu", "label": "ieu", "type": "phoneme", "bbox": [0.13, 0.70, 0.23, 0.82]},
+    {"id": "ui",  "label": "ui",  "type": "phoneme", "bbox": [0.23, 0.70, 0.33, 0.82]},
+    {"id": "oi",  "label": "oi",  "type": "phoneme", "bbox": [0.33, 0.70, 0.43, 0.82]},
+    {"id": "ill", "label": "ill", "type": "phoneme", "bbox": [0.43, 0.70, 0.53, 0.82]},
+    {"id": "oin", "label": "oin", "type": "phoneme", "bbox": [0.53, 0.70, 0.63, 0.82]},
+    {"id": "un",  "label": "un",  "type": "phoneme", "bbox": [0.63, 0.70, 0.73, 0.82]},
+    {"id": "ien", "label": "ien", "type": "phoneme", "bbox": [0.73, 0.70, 0.85, 0.82]},
+
+    {"id": "parlons",   "label": "parlons",   "type": "mot", "bbox": [0.95, 0.10, 1.00, 0.30]},
+    {"id": "salut",     "label": "salut",     "type": "mot", "bbox": [0.95, 0.30, 1.00, 0.55]},
+    {"id": "au_revoir", "label": "au revoir", "type": "mot", "bbox": [0.95, 0.55, 1.00, 0.85]},
+
+    {"id": "pourquoi", "label": "pourquoi", "type": "mot", "bbox": [0.00, 0.85, 0.20, 1.00]},
+    {"id": "quand",    "label": "quand",    "type": "mot", "bbox": [0.20, 0.85, 0.40, 1.00]},
+    {"id": "ou_quest", "label": "où",       "type": "mot", "bbox": [0.40, 0.85, 0.55, 1.00]},
+    {"id": "comment",  "label": "comment",  "type": "mot", "bbox": [0.55, 0.85, 0.80, 1.00]},
+    {"id": "combien",  "label": "combien",  "type": "mot", "bbox": [0.80, 0.85, 1.00, 1.00]}
   ]
 }

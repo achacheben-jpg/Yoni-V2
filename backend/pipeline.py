@@ -208,20 +208,23 @@ def stable_pointings(
 def project_pointings_to_cells(
     pointings: list[dict], calibration: dict, tableau: dict, dbg: DebugLogger
 ) -> list[dict]:
-    """Ajoute case_id_geometrique à chaque pointage via l'homographie."""
-    H = np.array(calibration["homography_image_to_grid"], dtype=np.float64)
-    rows = tableau["rows"]
-    cols = tableau["cols"]
+    """Ajoute case_id_geometrique à chaque pointage via l'homographie + lookup bbox."""
+    H = np.array(
+        calibration.get("homography_image_to_norm")
+        or calibration.get("homography_image_to_grid"),  # rétro-compat ancienne calibration
+        dtype=np.float64,
+    )
     out = []
     for p in pointings:
-        row, col, gx, gy = pixel_to_cell(p["x_pixel"], p["y_pixel"], H, rows, cols)
-        case_id = None
-        label = None
-        if row is not None and col is not None:
-            cell = tableau["cells"][row][col]
-            case_id = cell["id"]
-            label = cell["label"]
-        out.append({**p, "row": row, "col": col, "grid_xy": [gx, gy], "case_id_geometrique": case_id, "label": label})
+        case_id, label, nx, ny = pixel_to_cell(p["x_pixel"], p["y_pixel"], H, tableau)
+        out.append(
+            {
+                **p,
+                "norm_xy": [nx, ny],
+                "case_id_geometrique": case_id,
+                "label": label,
+            }
+        )
     dbg.log(
         "projection pointages → cases",
         nb_total=len(out),
@@ -293,15 +296,11 @@ def run_pipeline(
         dbg.log("k-NN appliqué", **knn_stats)
 
         # Mise à jour des labels en utilisant la case corrigée si différente.
+        labels_by_id = {c["id"]: c["label"] for c in tableau["cells"]}
         for p in pointings:
             cid = p.get("case_id_corrigee")
-            if cid:
-                # Retrouve le label correspondant.
-                for r in tableau["cells"]:
-                    for c in r:
-                        if c["id"] == cid:
-                            p["label_corrige"] = c["label"]
-                            break
+            if cid and cid in labels_by_id:
+                p["label_corrige"] = labels_by_id[cid]
 
         with dbg.step(f"transcription Whisper ({os.getenv('WHISPER_MODEL', 'medium')})"):
             transcript = transcribe(audio_path)
