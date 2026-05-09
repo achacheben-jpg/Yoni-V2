@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { IconCamera, IconCheck, IconRefresh } from "./Icon";
+import { IconCamera, IconCheck, IconRefresh, IconSquare } from "./Icon";
 
 type Cell = {
   id: string;
@@ -35,6 +35,75 @@ export function Calibration({
   const [error, setError] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [renderedSize, setRenderedSize] = useState<{ w: number; h: number } | null>(null);
+
+  // Capture en direct (webcam ou caméra arrière du téléphone).
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Branche le flux vidéo dès qu'il est prêt.
+  useEffect(() => {
+    if (cameraVideoRef.current && cameraStream) {
+      cameraVideoRef.current.srcObject = cameraStream;
+      cameraVideoRef.current.play().catch(() => {});
+    }
+  }, [cameraStream]);
+
+  // Coupe le flux quand le composant se démonte ou qu'on quitte le mode caméra.
+  useEffect(() => {
+    return () => {
+      cameraStream?.getTracks().forEach((t) => t.stop());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openCamera = async () => {
+    setCameraError(null);
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      });
+      setCameraStream(s);
+      setCameraOpen(true);
+    } catch (e) {
+      setCameraError(
+        `Caméra inaccessible : ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  };
+
+  const closeCamera = () => {
+    cameraStream?.getTracks().forEach((t) => t.stop());
+    setCameraStream(null);
+    setCameraOpen(false);
+  };
+
+  const capture = () => {
+    const v = cameraVideoRef.current;
+    if (!v || !v.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(v, 0, 0);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+        closeCamera();
+        setPendingFile(file);
+      },
+      "image/jpeg",
+      0.92,
+    );
+  };
 
   useEffect(() => {
     if (!pendingFile) {
@@ -103,6 +172,47 @@ export function Calibration({
       setSubmitting(false);
     }
   };
+
+  // Mode caméra : aperçu live + bouton capture.
+  if (cameraOpen) {
+    return (
+      <div className="space-y-3">
+        <div
+          className="text-sm"
+          style={{ color: "var(--color-ink-soft)" }}
+        >
+          Cadre le tableau bien à plat dans l'image, puis capture. Tu cliqueras ensuite sur
+          les 4 coins comme d'habitude.
+        </div>
+        <div
+          className="overflow-hidden"
+          style={{
+            background: "var(--color-ink)",
+            borderRadius: "var(--radius-card)",
+            border: "1px solid var(--color-rule)",
+          }}
+        >
+          <video
+            ref={cameraVideoRef}
+            muted
+            playsInline
+            className="w-full max-h-[60vh] object-contain"
+          />
+        </div>
+        {cameraError && <div className="banner-error">{cameraError}</div>}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={capture} className="btn-primary">
+            <IconCamera size={16} />
+            <span>Capturer</span>
+          </button>
+          <button onClick={closeCamera} className="btn-ghost">
+            <IconSquare size={12} />
+            <span>Annuler</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Mode 1 : photo locale en cours de calibration (pas encore validée).
   if (pendingUrl) {
@@ -254,6 +364,22 @@ export function Calibration({
           onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
         />
       </label>
+
+      <div
+        className="flex items-center gap-3 my-1 text-[11px] font-mono"
+        style={{ color: "var(--color-ink-faint)" }}
+      >
+        <div style={{ flex: 1, height: 1, background: "var(--color-rule)" }} />
+        <span>ou</span>
+        <div style={{ flex: 1, height: 1, background: "var(--color-rule)" }} />
+      </div>
+
+      <button onClick={openCamera} className="btn-ghost w-full">
+        <IconCamera size={16} />
+        <span>Prendre une photo en direct</span>
+      </button>
+
+      {cameraError && <div className="banner-error">{cameraError}</div>}
       {error && <div className="banner-error">{error}</div>}
     </div>
   );
