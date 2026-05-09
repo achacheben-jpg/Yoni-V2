@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IconCamera, IconCheck, IconRefresh } from "./Icon";
 
 type Cell = {
   id: string;
@@ -35,7 +36,6 @@ export function Calibration({
   const imgRef = useRef<HTMLImageElement>(null);
   const [renderedSize, setRenderedSize] = useState<{ w: number; h: number } | null>(null);
 
-  // URL pour preview locale après upload.
   useEffect(() => {
     if (!pendingFile) {
       setPendingUrl(null);
@@ -46,7 +46,6 @@ export function Calibration({
     return () => URL.revokeObjectURL(url);
   }, [pendingFile]);
 
-  // Reset les coins quand on recharge une nouvelle image.
   useEffect(() => {
     setCorners([]);
     setError(null);
@@ -105,20 +104,12 @@ export function Calibration({
     }
   };
 
-  // Mode 1 : image locale en cours de calibration (pas encore validée).
+  // Mode 1 : photo locale en cours de calibration (pas encore validée).
   if (pendingUrl) {
-    const next = CORNER_ORDER[corners.length];
     return (
-      <div className="space-y-3">
-        <div className="text-sm text-slate-600">
-          {next ? (
-            <>
-              Clique sur le coin <strong>{next}</strong> du tableau ({corners.length}/4 placés).
-            </>
-          ) : (
-            <>4 coins placés. Vérifie l'ordre puis valide.</>
-          )}
-        </div>
+      <div className="space-y-4">
+        <Stepper currentStep={corners.length} />
+
         <div className="relative inline-block max-w-full">
           <img
             ref={imgRef}
@@ -126,7 +117,11 @@ export function Calibration({
             onLoad={handleImageLoad}
             onClick={handleImageClick}
             alt="calibration"
-            className="max-w-full max-h-[60vh] cursor-crosshair select-none rounded border border-slate-300"
+            className="max-w-full max-h-[60vh] cursor-crosshair select-none"
+            style={{
+              borderRadius: "var(--radius-card)",
+              border: "1px solid var(--color-rule)",
+            }}
             draggable={false}
           />
           {renderedSize && (
@@ -138,21 +133,29 @@ export function Calibration({
               {corners.length === 4 && (
                 <polygon
                   points={corners.map((c) => c.join(",")).join(" ")}
-                  fill="rgba(34,197,94,0.15)"
-                  stroke="rgb(34,197,94)"
+                  fill="rgba(106,138,110,0.18)"
+                  stroke="var(--color-sage)"
                   strokeWidth={2}
                 />
               )}
               {corners.map((c, i) => (
                 <g key={i}>
-                  <circle cx={c[0]} cy={c[1]} r={8} fill="white" stroke="rgb(220,38,38)" strokeWidth={2} />
+                  <circle
+                    cx={c[0]}
+                    cy={c[1]}
+                    r={10}
+                    fill="#fff"
+                    stroke="var(--color-clay)"
+                    strokeWidth={2}
+                  />
                   <text
                     x={c[0]}
                     y={c[1] + 4}
                     textAnchor="middle"
                     fontSize="11"
-                    fill="rgb(220,38,38)"
-                    fontWeight="bold"
+                    fontFamily="var(--font-mono)"
+                    fill="var(--color-clay)"
+                    fontWeight="500"
                   >
                     {i + 1}
                   </text>
@@ -161,26 +164,29 @@ export function Calibration({
             </svg>
           )}
         </div>
-        {error && <div className="text-sm text-red-700">{error}</div>}
-        <div className="flex gap-2">
+
+        {error && <div className="banner-error">{error}</div>}
+
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={submit}
             disabled={corners.length !== 4 || submitting}
-            className="px-4 py-2 rounded bg-green-600 text-white text-sm disabled:bg-slate-300 disabled:text-slate-500"
+            className="btn-primary"
           >
-            {submitting ? "Calcul…" : "✓ Valider"}
+            <IconCheck size={16} />
+            <span>{submitting ? "Calcul…" : "Valider"}</span>
           </button>
           <button
             onClick={() => setCorners([])}
             disabled={submitting || corners.length === 0}
-            className="px-3 py-2 rounded bg-white border border-slate-300 text-sm"
+            className="btn-ghost"
           >
             Effacer les points
           </button>
           <button
             onClick={() => setPendingFile(null)}
             disabled={submitting}
-            className="px-3 py-2 rounded bg-white border border-slate-300 text-sm"
+            className="btn-ghost"
           >
             Annuler
           </button>
@@ -192,24 +198,54 @@ export function Calibration({
   // Mode 2 : déjà calibré → on affiche l'image stockée et l'overlay des bboxes.
   if (isCalibrated && data?.image_size && data.cells) {
     return (
-      <CalibratedView data={data} onRecalibrate={recalibrate} submitting={submitting} error={error} />
+      <CalibratedView
+        data={data}
+        onRecalibrate={recalibrate}
+        submitting={submitting}
+        error={error}
+      />
     );
   }
 
-  // Mode 0 : pas encore calibré, pas d'image en cours → upload.
+  // Mode 0 : pas encore calibré, pas de photo en cours → upload.
   return (
     <div className="space-y-3">
-      <p className="text-sm text-slate-600">
-        Upload une photo zénithale du tableau seul. Tu cliqueras ensuite sur les 4 coins dans l'ordre :
+      <p className="text-sm" style={{ color: "var(--color-ink-soft)" }}>
+        Une photo zénithale du tableau seul. Tu cliqueras ensuite sur les 4 coins dans l'ordre :
         haut-gauche, haut-droit, bas-droit, bas-gauche.
       </p>
       <label className="block cursor-pointer">
-        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center bg-slate-50 hover:bg-slate-100 transition">
-          <div className="text-3xl mb-2">📷</div>
-          <div className="text-sm font-medium text-slate-700">
-            Cliquer pour choisir une photo du tableau
+        <div
+          className="text-center"
+          style={{
+            border: "2px dashed var(--color-rule)",
+            borderRadius: "var(--radius-card)",
+            background: "var(--color-canvas)",
+            padding: "32px",
+            transition: "background 0.15s ease, border-color 0.15s ease",
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              width: 48,
+              height: 48,
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              background: "var(--color-surface)",
+              color: "var(--color-ink-soft)",
+              marginBottom: 10,
+            }}
+          >
+            <IconCamera size={24} />
           </div>
-          <div className="text-xs text-slate-500 mt-1">JPEG ou PNG · vue zénithale, tableau bien à plat</div>
+          <div className="font-display text-base font-semibold" style={{ color: "var(--color-ink)" }}>
+            Choisir une photo du tableau
+          </div>
+          <div className="text-[13px] mt-1" style={{ color: "var(--color-ink-soft)" }}>
+            JPEG ou PNG · vue zénithale, tableau bien à plat
+          </div>
         </div>
         <input
           type="file"
@@ -218,11 +254,46 @@ export function Calibration({
           onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
         />
       </label>
-      {error && <div className="text-sm text-red-700">{error}</div>}
+      {error && <div className="banner-error">{error}</div>}
     </div>
   );
 }
 
+/* ============================================================ */
+/*  Stepper : 4 étapes haut-gauche → bas-gauche                  */
+/* ============================================================ */
+function Stepper({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="space-y-2">
+      <div className="stepper">
+        {CORNER_ORDER.map((label, i) => {
+          const state = i < currentStep ? "done" : i === currentStep ? "current" : "future";
+          return (
+            <span key={label} className="contents">
+              <span className="stepper-step" data-state={state}>
+                <span style={{ minWidth: 12 }}>{i + 1}</span>
+                <span>{label}</span>
+              </span>
+              {i < CORNER_ORDER.length - 1 && <span className="stepper-sep">›</span>}
+            </span>
+          );
+        })}
+      </div>
+      <div
+        className="font-mono text-[11px]"
+        style={{ color: "var(--color-ink-faint)" }}
+      >
+        {currentStep < 4
+          ? `${currentStep}/4 coins placés — clic sur l'image pour ajouter le suivant`
+          : "4/4 coins placés — vérifie l'ordre puis valide"}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================ */
+/*  Vue calibrée                                                 */
+/* ============================================================ */
 function CalibratedView({
   data,
   onRecalibrate,
@@ -248,9 +319,9 @@ function CalibratedView({
 
   return (
     <div className="space-y-3">
-      <div className="text-sm text-slate-600">
-        {data.cells!.length} cases sur le tableau. Vérifie que chaque rectangle bleu correspond
-        à la bonne case ; si ça déborde ou pointe à côté, signale-le pour ajuster <code>tableau.json</code>.
+      <div className="text-sm" style={{ color: "var(--color-ink-soft)" }}>
+        {data.cells!.length} cases sur le tableau. Vérifie que chaque rectangle correspond à la
+        bonne case ; sinon, signale-le pour ajuster <span className="font-mono text-[12px]">tableau.json</span>.
       </div>
       <div className="relative inline-block max-w-full">
         <img
@@ -258,7 +329,11 @@ function CalibratedView({
           src={"/api/calibration/image?t=" + Date.now()}
           onLoad={handleLoad}
           alt="tableau calibré"
-          className="max-w-full max-h-[60vh] rounded border border-slate-300"
+          className="max-w-full max-h-[60vh]"
+          style={{
+            borderRadius: "var(--radius-card)",
+            border: "1px solid var(--color-rule)",
+          }}
           draggable={false}
         />
         {rendered && (
@@ -276,8 +351,8 @@ function CalibratedView({
                 <g key={cell.id}>
                   <polygon
                     points={pts}
-                    fill="rgba(59,130,246,0.10)"
-                    stroke="rgba(59,130,246,0.7)"
+                    fill="rgba(106,138,110,0.10)"
+                    stroke="rgba(106,138,110,0.55)"
                     strokeWidth={1}
                   />
                   <text
@@ -285,8 +360,9 @@ function CalibratedView({
                     y={cy * sy + 4}
                     textAnchor="middle"
                     fontSize="11"
-                    fill="rgb(30,64,175)"
-                    fontWeight="bold"
+                    fontFamily="var(--font-mono)"
+                    fill="var(--color-ink)"
+                    fontWeight="500"
                     style={{ paintOrder: "stroke", stroke: "white", strokeWidth: 3 }}
                   >
                     {cell.label}
@@ -297,13 +373,14 @@ function CalibratedView({
           </svg>
         )}
       </div>
-      {error && <div className="text-sm text-red-700">{error}</div>}
+      {error && <div className="banner-error">{error}</div>}
       <button
         onClick={onRecalibrate}
         disabled={submitting}
-        className="px-3 py-2 rounded bg-white border border-slate-300 text-sm hover:bg-slate-50"
+        className="btn-ghost"
       >
-        🔄 Changer de photo / recalibrer
+        <IconRefresh size={14} />
+        <span>Changer de photo / recalibrer</span>
       </button>
     </div>
   );
