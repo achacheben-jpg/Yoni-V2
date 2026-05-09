@@ -79,3 +79,19 @@ export const IconCalendar = (p: IconProps) => (
     <path d="M8 3v4M16 3v4M3 10h18" />
   </svg>
 );
+
+export const IconDownload = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 4v12" />
+    <path d="M7 11l5 5 5-5" />
+    <path d="M5 20h14" />
+  </svg>
+);
+
+export const IconUpload = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 20V8" />
+    <path d="M7 13l5-5 5 5" />
+    <path d="M5 4h14" />
+  </svg>
+);
