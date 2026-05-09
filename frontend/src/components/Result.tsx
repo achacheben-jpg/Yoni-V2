@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IconCheck } from "./Icon";
 import type { ProcessResult } from "../types";
 
 export function Result({
@@ -57,146 +58,213 @@ export function Result({
   };
 
   const couleurFr = result.couleur_pastille_detectee === "fuchsia" ? "fuchsia" : "vert fluo";
+  const couleurDot = result.couleur_pastille_detectee === "fuchsia" ? "#d1396b" : "#7cb342";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {result.claude_error && (
-        <div className="rounded bg-amber-50 border border-amber-300 px-4 py-3 text-sm text-amber-800">
+        <div className="banner-amber">
           Reconstruction Claude indisponible : {result.claude_error}
         </div>
       )}
 
-      <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
-        <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Phrase principale</div>
-        <div className="text-2xl md:text-3xl font-semibold leading-tight break-words">
-          {finalPhrase || <span className="text-slate-400">…</span>}
+      {/* Phrase principale */}
+      <div
+        style={{
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-rule)",
+          borderRadius: "var(--radius-card)",
+          padding: "24px 28px",
+        }}
+      >
+        <div
+          className="font-mono text-[11px] uppercase tracking-wide mb-2"
+          style={{ color: "var(--color-ink-faint)" }}
+        >
+          phrase principale
+        </div>
+        <div
+          className="font-display font-semibold leading-tight break-words"
+          style={{ fontSize: 32, lineHeight: 1.15, textWrap: "pretty" as never }}
+        >
+          {finalPhrase || (
+            <span style={{ color: "var(--color-ink-faint)" }}>…</span>
+          )}
         </div>
       </div>
 
+      {/* Autres propositions */}
       {result.propositions.length > 0 && (
         <div>
-          <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">
-            Autres propositions (clic pour basculer)
+          <div
+            className="font-mono text-[11px] uppercase tracking-wide mb-2"
+            style={{ color: "var(--color-ink-faint)" }}
+          >
+            autres propositions (clic pour basculer)
           </div>
           <div className="flex flex-wrap gap-2">
-            {result.propositions.map((p, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setSelected(p);
-                  setCustom("");
-                }}
-                className={
-                  "px-3 py-2 rounded text-sm border min-h-[44px] " +
-                  (selected === p && !custom.trim()
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50")
-                }
-              >
-                <span className="text-slate-400 mr-1">{i + 1}.</span> {p}
-              </button>
-            ))}
+            {result.propositions.map((p, i) => {
+              const isSelected = selected === p && !custom.trim();
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setSelected(p);
+                    setCustom("");
+                  }}
+                  className="chip-prop"
+                  data-selected={isSelected}
+                >
+                  <span className="chip-prop-num">{i + 1}.</span>
+                  <span>{p}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
+      {/* Champ correction */}
       <div>
-        <label className="text-xs text-slate-500 uppercase tracking-wide block mb-1">
-          Phrase correcte (à compléter si aucune n'est juste)
+        <label
+          className="font-mono text-[11px] uppercase tracking-wide block mb-2"
+          style={{ color: "var(--color-ink-faint)" }}
+        >
+          phrase correcte (à compléter si aucune n'est juste)
         </label>
         <input
           type="text"
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
           placeholder="…"
-          className="w-full rounded border border-slate-300 px-3 py-2 text-base focus:outline-none focus:border-blue-500"
+          className="input-atelier"
         />
       </div>
 
+      {/* Méta-pills */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 text-pink-800 px-2 py-0.5 text-xs">
-          Pastille : {couleurFr}
+        <span className="pill" style={{ background: "var(--color-canvas)", color: "var(--color-ink)" }}>
+          <span className="pill-dot" style={{ background: couleurDot }} />
+          pastille : {couleurFr}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">
+        <span className="pill" style={{ background: "var(--color-canvas)", color: "var(--color-ink-soft)" }}>
           {result.pointages.length} pointage{result.pointages.length > 1 ? "s" : ""}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs">
+        <span className="pill" style={{ background: "var(--color-canvas)", color: "var(--color-ink-soft)" }}>
           session {result.session_id}
         </span>
       </div>
 
+      {/* Actions */}
       <div className="flex flex-wrap gap-2">
         <button
           onClick={validate}
           disabled={submitting || validated || !finalPhrase}
-          className="px-4 py-2 rounded bg-green-600 text-white font-medium disabled:bg-slate-300 disabled:text-slate-500 min-h-[44px]"
+          className="btn-primary"
         >
-          {validated ? "✓ Validé" : submitting ? "Enregistrement…" : "✓ Valider et apprendre"}
+          <IconCheck size={16} />
+          <span>
+            {validated ? "Validé" : submitting ? "Enregistrement…" : "Valider et apprendre"}
+          </span>
         </button>
-        <button
-          onClick={() => setShowDetails((v) => !v)}
-          className="px-4 py-2 rounded bg-white border border-slate-300 text-sm min-h-[44px]"
-        >
+        <button onClick={() => setShowDetails((v) => !v)} className="btn-ghost">
           {showDetails ? "Masquer les détails" : "Détails techniques"}
         </button>
       </div>
 
-      {error && <div className="text-sm text-red-700">{error}</div>}
+      {error && <div className="banner-error">{error}</div>}
 
       {showDetails && (
-        <div className="rounded border border-slate-200 bg-white p-3 space-y-3 text-sm">
-          <div>
-            <div className="text-xs text-slate-500 uppercase mb-1">Séquence cases</div>
-            <div className="font-mono text-xs break-all">
+        <div
+          className="space-y-4"
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-rule)",
+            borderRadius: "var(--radius-card)",
+            padding: "16px 18px",
+          }}
+        >
+          <DetailBlock label="Séquence cases">
+            <div className="flex flex-wrap gap-1">
               {result.label_sequence.map((l, i) => (
-                <span key={i} className="inline-block mr-1 mb-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded">
+                <span
+                  key={i}
+                  className="font-mono text-[12px] px-2 py-1"
+                  style={{
+                    background: "var(--color-sage-soft)",
+                    color: "var(--color-ink)",
+                    borderRadius: 4,
+                  }}
+                >
                   {l ?? "?"}
                 </span>
               ))}
             </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 uppercase mb-1">Transcription audio (Whisper)</div>
-            <div className="font-mono text-xs whitespace-pre-wrap">
-              {result.audio_transcript.text || <span className="text-slate-400">(silence)</span>}
+          </DetailBlock>
+
+          <DetailBlock label="Transcription audio (Whisper)">
+            <div
+              className="font-mono text-[12px] whitespace-pre-wrap"
+              style={{ color: result.audio_transcript.text ? "var(--color-ink)" : "var(--color-ink-faint)" }}
+            >
+              {result.audio_transcript.text || "(silence)"}
             </div>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 uppercase mb-1">Segments audio</div>
-            <ul className="text-xs list-disc list-inside text-slate-600">
-              {result.audio_transcript.segments.length === 0 && <li className="list-none text-slate-400">aucun</li>}
-              {result.audio_transcript.segments.map((s, i) => (
-                <li key={i}>
-                  [{s.start.toFixed(2)}s → {s.end.toFixed(2)}s] {s.text}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 uppercase mb-1">Pointages bruts</div>
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="text-slate-500">
-                  <th className="text-left py-1">t</th>
-                  <th className="text-left py-1">px</th>
-                  <th className="text-left py-1">case</th>
-                  <th className="text-left py-1">durée</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.pointages.map((p, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="py-1">{p.t_start.toFixed(2)}–{p.t_end.toFixed(2)}s</td>
-                    <td className="py-1">({p.x_pixel.toFixed(0)}, {p.y_pixel.toFixed(0)})</td>
-                    <td className="py-1">{p.label ?? "?"}</td>
-                    <td className="py-1">{p.duration.toFixed(2)}s</td>
-                  </tr>
+          </DetailBlock>
+
+          <DetailBlock label="Segments audio">
+            {result.audio_transcript.segments.length === 0 ? (
+              <div className="text-[12px]" style={{ color: "var(--color-ink-faint)" }}>aucun</div>
+            ) : (
+              <ul className="text-[12px] font-mono space-y-1" style={{ color: "var(--color-ink-soft)" }}>
+                {result.audio_transcript.segments.map((s, i) => (
+                  <li key={i}>
+                    [{s.start.toFixed(2)}s → {s.end.toFixed(2)}s] {s.text}
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </ul>
+            )}
+          </DetailBlock>
+
+          <DetailBlock label="Pointages bruts">
+            <div style={{ maxHeight: 240, overflowY: "auto" }}>
+              <table className="zebra-table">
+                <thead>
+                  <tr>
+                    <th>t</th>
+                    <th>px</th>
+                    <th>case</th>
+                    <th>durée</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.pointages.map((p, i) => (
+                    <tr key={i}>
+                      <td>{p.t_start.toFixed(2)}–{p.t_end.toFixed(2)}s</td>
+                      <td>({p.x_pixel.toFixed(0)}, {p.y_pixel.toFixed(0)})</td>
+                      <td>{p.label ?? "?"}</td>
+                      <td>{p.duration.toFixed(2)}s</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </DetailBlock>
         </div>
       )}
+    </div>
+  );
+}
+
+function DetailBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div
+        className="font-mono text-[10px] uppercase tracking-wide mb-1"
+        style={{ color: "var(--color-ink-faint)" }}
+      >
+        {label}
+      </div>
+      {children}
     </div>
   );
 }
