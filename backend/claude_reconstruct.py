@@ -56,7 +56,9 @@ def _read_few_shot(corrections_path: Path, n: int = MAX_FEW_SHOT) -> list[dict]:
 def _format_few_shot(examples: Iterable[dict]) -> str:
     parts: list[str] = []
     for ex in examples:
-        labels = ex.get("label_sequence") or []
+        labels_raw = ex.get("label_sequence") or []
+        # Tolère les None (pointages hors-grille) et les valeurs non-str.
+        labels = [str(l) if l is not None else "?" for l in labels_raw]
         audio = ex.get("audio_transcript") or ""
         if isinstance(audio, dict):
             audio = audio.get("text", "")
